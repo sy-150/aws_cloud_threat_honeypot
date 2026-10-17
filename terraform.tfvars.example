@@ -1,0 +1,6 @@
+# variable file example for setting up AWS environment 
+
+aws_region      = "us-east-1"
+assume_role_arn = "arn:aws:iam::123456789012:role/Your_IAM_Role"
+domain_name     = "yourdomain.com"
+vpc_cidr        = "10.0.0.0/16"
