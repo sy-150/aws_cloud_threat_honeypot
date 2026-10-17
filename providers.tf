@@ -13,6 +13,6 @@ provider "aws" {
 
   assume_role {
     role_arn = var.assume_role_arn
-    session_name = "TerraForm Session"
+    session_name = "TerraForm_Session"
   }
 }

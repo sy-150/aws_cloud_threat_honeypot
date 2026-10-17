@@ -30,6 +30,32 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Creating an IAM policy for AWS Bedrock
+resource "aws_iam_policy" "bedrock_access" {
+  name = "LambdaBedrockInvokePolicy"
+  description = "Allows Lambda honeypot to invoke Bedrock foundation models"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+  
+}
+
+# Attaching the policy to the role
+resource "aws_iam_role_policy_attachment" "bedrock_lambda_attach" {
+  role = aws_iam_role.lambda_exec_role.name
+  policy_arn = aws_iam_policy.bedrock_access.arn
+}
+
 # Defining machine specification
 resource "aws_lambda_function" "payload_analyzer" {
   filename         = data.archive_file.lambda_zip.output_path
@@ -38,7 +64,7 @@ resource "aws_lambda_function" "payload_analyzer" {
   handler          = "lambda_function.lambda_handler" # Locates the file containing the lambda_handler and calling said function
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256 # Calculates ZIP file binary hash to ensure changes will be automatically detected and uploaded to AWS during terraform apply
   runtime          = "python3.11"
-  timeout          = 10
+  timeout          = 30
 }
 
 # Creating the lambda function URL
@@ -51,4 +77,13 @@ resource "aws_lambda_function_url" "payload_analyzer_url" {
     allow_methods = ["POST"]
     allow_headers = ["content-type"]
   }
+}
+
+# AWS lambda permission
+resource "aws_lambda_permission" "allow_public_function_url" {
+  statement_id           = "AllowPublicInvokeNew"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.payload_analyzer.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
 }
