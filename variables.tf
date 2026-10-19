@@ -15,11 +15,11 @@ variable "vpc_cidr" {
 # Domain & DNS
 variable "domain_name"{
   description = "Website domain name"
-  type = string
+  type        = string
 }
 
 # Assuming IAM Role
 variable "assume_role_arn"{
   description = "IAM role assuming ARN"
-  type = string
+  type        = string
 }

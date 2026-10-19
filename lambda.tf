@@ -1,11 +1,3 @@
-# Reading from a lambda function and outputting a zip file
-data "archive_file" "lambda_zip" {
-  type = "zip"
-  source_file = "${path.module}/lambda_function.py"
-  output_path = "${path.module}/lambda_payload_analyzer.zip"
-  
-}
-
 # Creating an IAM role with the permissions needed to execute Lambda
 resource "aws_iam_role" "lambda_exec_role" {
   name = "ThreatAnalyzerLambdaRole"
@@ -26,13 +18,13 @@ resource "aws_iam_role" "lambda_exec_role" {
 
 # Attaching the policy to the role
 resource "aws_iam_role_policy_attachment" "lambda_logs_policy" {
-  role = aws_iam_role.lambda_exec_role.name
+  role       = aws_iam_role.lambda_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 # Creating an IAM policy for AWS Bedrock
 resource "aws_iam_policy" "bedrock_access" {
-  name = "LambdaBedrockInvokePolicy"
+  name        = "LambdaBedrockInvokePolicy"
   description = "Allows Lambda honeypot to invoke Bedrock foundation models"
 
   policy = jsonencode({
@@ -52,19 +44,19 @@ resource "aws_iam_policy" "bedrock_access" {
 
 # Attaching the policy to the role
 resource "aws_iam_role_policy_attachment" "bedrock_lambda_attach" {
-  role = aws_iam_role.lambda_exec_role.name
+  role       = aws_iam_role.lambda_exec_role.name
   policy_arn = aws_iam_policy.bedrock_access.arn
 }
 
 # Defining machine specification
 resource "aws_lambda_function" "payload_analyzer" {
-  filename         = data.archive_file.lambda_zip.output_path
   function_name    = "ThreatPayloadAnalyzer"
   role             = aws_iam_role.lambda_exec_role.arn
-  handler          = "lambda_function.lambda_handler" # Locates the file containing the lambda_handler and calling said function
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256 # Calculates ZIP file binary hash to ensure changes will be automatically detected and uploaded to AWS during terraform apply
-  runtime          = "python3.11"
   timeout          = 30
+
+  # Container image configuration
+  package_type = "Image"
+  image_uri = "${aws_ecr_repository.threat_analyzer.repository_url}:latest"
 }
 
 # Creating the lambda function URL
@@ -86,4 +78,11 @@ resource "aws_lambda_permission" "allow_public_function_url" {
   function_name          = aws_lambda_function.payload_analyzer.function_name
   principal              = "*"
   function_url_auth_type = "NONE"
+}
+
+# Creating a container repository
+resource "aws_ecr_repository" "threat_analyzer" {
+  name                 = "threat-payload-analyzer"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
 }
